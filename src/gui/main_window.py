@@ -8,6 +8,8 @@ import json
 import logging
 from pathlib import Path
 
+import numpy as np
+
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QPushButton, QLabel, QFileDialog, QMessageBox, QProgressBar,
