@@ -1,6 +1,7 @@
 """
 CNC Pro - Interface Principal (PySide6)
 Design profissional com tema escuro
+Versão 3.0 - Corrigida
 """
 
 import sys
@@ -9,14 +10,29 @@ import logging
 from pathlib import Path
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QPushButton, QLabel, QFileDialog, QMessageBox,
-    QProgressBar, QTabWidget, QGroupBox, QFormLayout,
-    QDoubleSpinBox, QSpinBox, QComboBox, QCheckBox,
-    QTextEdit, QStatusBar, QSplitter, QFrame
+    QApplication,
+    QMainWindow, 
+    QWidget, 
+    QVBoxLayout, 
+    QHBoxLayout,
+    QPushButton, 
+    QLabel, 
+    QFileDialog, 
+    QMessageBox,
+    QProgressBar, 
+    QTabWidget, 
+    QGroupBox, 
+    QFormLayout,
+    QDoubleSpinBox, 
+    QSpinBox, 
+    QComboBox, 
+    QCheckBox,
+    QTextEdit, 
+    QStatusBar, 
+    QSplitter
 )
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
-from PySide6.QtGui import QPixmap, QFont, QIcon
+from PySide6.QtGui import QPixmap, QFont
 
 from src.core.gerador import GeradorGCode, ConfigGerador
 from src.core.processador import ProcessadorImagem
