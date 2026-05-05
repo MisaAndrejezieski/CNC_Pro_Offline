@@ -1,0 +1,18 @@
+{
+    "gerador": {
+        "largura_padrao": 100,
+        "altura_padrao": 100,
+        "profundidade_padrao": 3,
+        "resolucao_padrao": 15,
+        "velocidade_corte_padrao": 800,
+        "passo_corte_padrao": 0.5,
+        "diametro_ferramenta": 3.175,
+        "limiar_padrao": 128,
+        "estrategia_padrao": "pocket"
+    },
+    "interface": {
+        "tema": "dark",
+        "ultimo_diretorio": "",
+        "ultimos_arquivos": []
+    }
+}
