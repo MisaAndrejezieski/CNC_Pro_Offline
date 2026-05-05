@@ -1,0 +1,14 @@
+# Core
+PySide6>=6.5.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Visualização 3D
+matplotlib>=3.7.0
+
+# Processamento avançado
+scipy>=1.10.0
+
+# Utilitários
+colorama>=0.4.6
+tqdm>=4.65.0
