@@ -1,0 +1,231 @@
+"""
+CNC Pro - Visualizador 3D Integrado
+Visualiza o relevo 3D antes da usinagem
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+from mpl_toolkits.mplot3d import Axes3D
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog
+from PySide6.QtCore import Qt
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class Visualizador3DWidget(QWidget):
+    """Widget para visualização 3D do relevo"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.dados_atuais = None
+        self.setup_ui()
+        
+    def setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Barra de ferramentas
+        toolbar = QHBoxLayout()
+        
+        self.btn_visualizar = QPushButton("🎨 Visualizar 3D")
+        self.btn_visualizar.clicked.connect(self.visualizar)
+        toolbar.addWidget(self.btn_visualizar)
+        
+        self.btn_salvar = QPushButton("📸 Salvar imagem")
+        self.btn_salvar.clicked.connect(self.salvar_imagem)
+        self.btn_salvar.setEnabled(False)
+        toolbar.addWidget(self.btn_salvar)
+        
+        toolbar.addStretch()
+        
+        self.status_label = QLabel("Clique em 'Visualizar 3D' após gerar o G-code")
+        self.status_label.setStyleSheet("color: #888; font-size: 10pt;")
+        toolbar.addWidget(self.status_label)
+        
+        layout.addLayout(toolbar)
+        
+        # Área do gráfico
+        self.figure = Figure(figsize=(10, 8), facecolor='#1e1e1e')
+        self.canvas = FigureCanvas(self.figure)
+        self.canvas.setMinimumHeight(450)
+        layout.addWidget(self.canvas)
+        
+        # Configura estilo escuro
+        plt.style.use('dark_background')
+        
+    def carregar_dados(self, imagem_array: np.ndarray, largura_mm: float, altura_mm: float, profundidade_max: float):
+        """
+        Carrega os dados da imagem para visualização
+        
+        Args:
+            imagem_array: Array numpy da imagem (escala de cinza)
+            largura_mm: Largura real em mm
+            altura_mm: Altura real em mm
+            profundidade_max: Profundidade máxima em mm
+        """
+        self.dados_atuais = {
+            'imagem': imagem_array.copy(),
+            'largura_mm': largura_mm,
+            'altura_mm': altura_mm,
+            'profundidade_max': profundidade_max
+        }
+        self.btn_salvar.setEnabled(True)
+        self.status_label.setText("✅ Dados carregados. Clique em 'Visualizar 3D'")
+        
+        # Mostra preview 2D automaticamente
+        self._mostrar_preview_2d()
+        
+    def _mostrar_preview_2d(self):
+        """Mostra preview 2D da imagem processada"""
+        if self.dados_atuais is None:
+            return
+            
+        self.figure.clear()
+        
+        # Preview 2D
+        ax = self.figure.add_subplot(111)
+        img = self.dados_atuais['imagem']
+        
+        # Mostra imagem com mapa de cores
+        im = ax.imshow(img, cmap='viridis', origin='upper', 
+                      extent=[0, self.dados_atuais['largura_mm'], 
+                             self.dados_atuais['altura_mm'], 0])
+        
+        ax.set_xlabel('Largura (mm)', color='white')
+        ax.set_ylabel('Altura (mm)', color='white')
+        ax.set_title('Preview da Imagem (Cores = Profundidade)', color='white', fontsize=12)
+        ax.tick_params(colors='white')
+        
+        # Barra de cores
+        cbar = self.figure.colorbar(im, ax=ax)
+        cbar.set_label('Profundidade (mm)', color='white')
+        cbar.ax.yaxis.set_tick_params(color='white')
+        
+        self.figure.tight_layout()
+        self.canvas.draw()
+        
+        self.status_label.setText("🎨 Preview 2D exibido. Clique em 'Visualizar 3D' para o relevo")
+        
+    def visualizar(self):
+        """Gera visualização 3D do relevo"""
+        if self.dados_atuais is None:
+            self.status_label.setText("⚠️ Nenhum dado carregado. Gere o G-code primeiro.")
+            return
+        
+        self.status_label.setText("🔄 Gerando visualização 3D...")
+        self.canvas.draw()
+        
+        # Cálculo do relevo 3D
+        imagem = self.dados_atuais['imagem']
+        largura_mm = self.dados_atuais['largura_mm']
+        altura_mm = self.dados_atuais['altura_mm']
+        prof_max = self.dados_atuais['profundidade_max']
+        
+        altura_px, largura_px = imagem.shape
+        
+        # Cria grade de coordenadas
+        x = np.linspace(0, largura_mm, largura_px)
+        y = np.linspace(0, altura_mm, altura_px)
+        X, Y = np.meshgrid(x, y)
+        
+        # Converte brilho para profundidade (invertido: escuro = fundo)
+        Z = (255 - imagem) / 255 * prof_max
+        Z = Z * -1  # Negativo para baixo
+        
+        # Amostragem para performance (se a imagem for muito grande)
+        max_points = 15000
+        total_points = largura_px * altura_px
+        
+        if total_points > max_points:
+            step = int(np.sqrt(total_points / max_points))
+            step = max(2, step)
+            
+            X_sampled = X[::step, ::step]
+            Y_sampled = Y[::step, ::step]
+            Z_sampled = Z[::step, ::step]
+            
+            self.status_label.setText(f"📊 Otimizando: {total_points:,} → {X_sampled.size:,} pontos")
+        else:
+            X_sampled, Y_sampled, Z_sampled = X, Y, Z
+            self.status_label.setText(f"🎨 Renderizando {total_points:,} pontos em 3D...")
+        
+        # Limpa a figura
+        self.figure.clear()
+        
+        # Cria subplot 3D
+        ax = self.figure.add_subplot(111, projection='3d')
+        
+        # Cria o gráfico de superfície
+        surf = ax.plot_surface(X_sampled, Y_sampled, Z_sampled, 
+                              cmap='terrain', 
+                              linewidth=0, 
+                              antialiased=True,
+                              alpha=0.9)
+        
+        # Configura o gráfico
+        ax.set_xlabel('Largura (mm)', color='white', fontsize=10)
+        ax.set_ylabel('Altura (mm)', color='white', fontsize=10)
+        ax.set_zlabel('Profundidade (mm)', color='white', fontsize=10)
+        
+        # Inverte Z para mostrar profundidade corretamente
+        ax.invert_zaxis()
+        
+        # Define limites
+        ax.set_xlim(0, largura_mm)
+        ax.set_ylim(0, altura_mm)
+        ax.set_zlim(-prof_max * 1.1, 0.5)
+        
+        # Título
+        titulo = f'Relevo 3D - Profundidade Máxima: {prof_max:.2f}mm'
+        ax.set_title(titulo, color='white', fontsize=12, fontweight='bold')
+        
+        # Adiciona barra de cores
+        cbar = self.figure.colorbar(surf, ax=ax, shrink=0.6, aspect=20)
+        cbar.set_label('Profundidade (mm)', color='white', fontsize=9)
+        cbar.ax.yaxis.set_tick_params(color='white')
+        
+        # Configura fundo
+        ax.set_facecolor('#1a1a2e')
+        self.figure.patch.set_facecolor('#1e1e1e')
+        
+        # Ajusta ângulo de visão
+        ax.view_init(elev=30, azim=-60)
+        
+        # Ajusta layout
+        self.figure.tight_layout()
+        
+        # Atualiza canvas
+        self.canvas.draw()
+        
+        self.status_label.setText("✅ Visualização 3D concluída! Use o mouse para girar/zoom")
+    
+    def salvar_imagem(self):
+        """Salva a visualização atual como imagem"""
+        if self.dados_atuais is None:
+            return
+        
+        nome_sugerido = f"relevo_3d_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Salvar Visualização 3D", 
+            nome_sugerido,
+            "Imagem PNG (*.png);;Todos os arquivos (*.*)"
+        )
+        
+        if path:
+            self.figure.savefig(path, dpi=150, bbox_inches='tight', 
+                              facecolor='#1e1e1e', edgecolor='none')
+            self.status_label.setText(f"📸 Imagem salva: {path}")
+            logger.info(f"Visualização 3D salva: {path}")
+    
+    def limpar(self):
+        """Limpa a visualização"""
+        self.figure.clear()
+        self.canvas.draw()
+        self.dados_atuais = None
+        self.btn_salvar.setEnabled(False)
+        self.status_label.setText("🎨 Visualização limpa")
