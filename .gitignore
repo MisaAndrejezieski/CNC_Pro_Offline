@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+.venv/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Projeto
+output/*.nc
+logs/*.log
+images/*.png
+images/*.jpg
+
+# Sistema
+Thumbs.db
+.DS_Store
